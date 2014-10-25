@@ -1,0 +1,33 @@
+# Makefile.g++ --- Makefile for g++
+
+DOTOBJ = .o
+DOTEXE = .exe
+OBJS = SHA-256$(DOTOBJ) Shareware$(DOTOBJ) ConsoleShareware$(DOTOBJ) Shareware_res$(DOTOBJ)
+
+DEFS = 
+#DEFS = -DJAPAN
+#DEFS = -DMZC_NO_SHAREWARE
+#DEFS = -DJAPAN -DMZC_NO_SHAREWARE
+
+CXXFLAGS = -O2 -static $(DEFS)
+RCFLAGS = $(DEFS)
+
+all: ConsoleShareware$(DOTEXE)
+
+ConsoleShareware$(DOTEXE): $(OBJS) Shareware.rc
+	g++ $(CXXFLAGS) -mconsole -o ConsoleShareware$(DOTEXE) $(OBJS)
+
+SHA-256$(DOTOBJ): SHA-256.hpp SHA-256.cpp
+	g++ $(CXXFLAGS) -c SHA-256.cpp
+
+Shareware$(DOTOBJ): Shareware.hpp Shareware_inl.hpp Shareware.cpp
+	g++ $(CXXFLAGS) -c Shareware.cpp
+
+ConsoleShareware$(DOTOBJ): SHA-256.hpp Shareware.hpp ConsoleShareware.cpp
+	g++ $(CXXFLAGS) -c ConsoleShareware.cpp
+
+Shareware_res$(DOTOBJ): Shareware.rc
+	windres $(RCFLAGS) Shareware.rc Shareware_res$(DOTOBJ)
+
+clean:
+	rm -fR *.o

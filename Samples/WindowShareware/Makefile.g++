@@ -1,0 +1,37 @@
+# Makefile.g++ --- Makefile for g++
+
+DOTOBJ = .o
+DOTEXE = .exe
+OBJS = \
+	SHA-256$(DOTOBJ) \
+	Shareware$(DOTOBJ) \
+	WindowShareware$(DOTOBJ) \
+	WindowShareware_res$(DOTOBJ)
+
+DEFS = 
+#DEFS = -DJAPAN
+#DEFS = -DMZC_NO_SHAREWARE
+#DEFS = -DJAPAN -DMZC_NO_SHAREWARE
+
+CXXFLAGS = -O2 -static $(DEFS)
+RCFLAGS = $(DEFS)
+
+all: WindowShareware$(DOTEXE)
+
+WindowShareware$(DOTEXE): $(OBJS) Shareware.rc
+	g++ $(CXXFLAGS) -mwindows -o WindowShareware$(DOTEXE) $(OBJS)
+
+WindowShareware_res$(DOTOBJ): resource.h WindowShareware.rc Shareware.rc
+	windres $(RCFLAGS) WindowShareware.rc WindowShareware_res$(DOTOBJ)
+
+SHA-256$(DOTOBJ): SHA-256.hpp SHA-256.cpp
+	g++ $(CXXFLAGS) -c SHA-256.cpp
+
+Shareware$(DOTOBJ): Shareware.hpp Shareware_inl.hpp Shareware.cpp
+	g++ $(CXXFLAGS) -c Shareware.cpp
+
+WindowShareware$(DOTOBJ): SHA-256.hpp Shareware.hpp WindowShareware.cpp
+	g++ $(CXXFLAGS) -c WindowShareware.cpp
+
+clean:
+	rm -fR *.o

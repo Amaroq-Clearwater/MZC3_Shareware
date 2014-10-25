@@ -1,0 +1,33 @@
+# Makefile.bcc32 --- Makefile for Borland C++ 5.5.1
+
+DOTOBJ = .obj
+DOTEXE = .exe
+OBJS = SHA-256$(DOTOBJ) Shareware$(DOTOBJ) ConsoleShareware$(DOTOBJ)
+
+DEFS = 
+#DEFS = -DJAPAN
+#DEFS = -DMZC_NO_SHAREWARE
+#DEFS = -DJAPAN -DMZC_NO_SHAREWARE
+
+CXXFLAGS = -O2 $(DEFS)
+RCFLAGS = $(DEFS)
+
+all: ConsoleShareware$(DOTEXE)
+
+ConsoleShareware$(DOTEXE): $(OBJS) Shareware.rc
+	bcc32 $(CXXFLAGS) -WC -eConsoleShareware$(DOTEXE) $(OBJS)
+	brc32 $(RCFLAGS) Shareware.rc ConsoleShareware.exe
+
+SHA-256$(DOTOBJ): SHA-256.hpp SHA-256.cpp
+	bcc32 $(CXXFLAGS) -c SHA-256.cpp
+
+Shareware$(DOTOBJ): Shareware.hpp Shareware_inl.hpp Shareware.cpp
+	bcc32 $(CXXFLAGS) -c Shareware.cpp
+
+ConsoleShareware$(DOTOBJ): SHA-256.hpp Shareware.hpp ConsoleShareware.cpp
+	bcc32 $(CXXFLAGS) -c ConsoleShareware.cpp
+
+clean:
+	if exist *.obj del *.obj
+	if exist *.tds del *.tds
+	if exist *.res del *.res
