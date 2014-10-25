@@ -27,7 +27,7 @@ USAGE
 
  (3) Edit "TODO:" items in file Shareware.rc.
 
- (4) Get the 32-byte hash string of your imagined password by SHA-256.exe.
+ (4) Get the hash string of your imagined password by SHA-256.exe.
      For example, if the password was "test", the hash string will be
      "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
      as below.
