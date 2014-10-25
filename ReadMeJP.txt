@@ -76,7 +76,7 @@
         if (!g_shareware.UrgeRegister(hwnd))
         {
             // 機能を実行しない。
-            ...
+            return;
         }
     }
     ...

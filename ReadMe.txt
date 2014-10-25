@@ -41,7 +41,7 @@ USAGE
  (5) Add #include "Shareware.hpp" to the main source file.
 
  (6) Add the definition of a global variable (named g_shareware) of 
-     SW_Shareware class to the main source file of your source as follows:
+     SW_Shareware class to the main source file as follows:
 
     SW_Shareware g_shareware(
         /* company registry key */      TEXT("MyCompany"),
@@ -52,7 +52,7 @@ USAGE
 
     The first parameter of constructor is the name of the company 
     registry key. The second parameter of constructor is the name of 
-    the software registry key. The third parameter of constructor is 
+    the application registry key. The third parameter of constructor is 
     the hash string of the password. The fourth parameter of 
     constructor is the number of the trial days.
 
@@ -73,7 +73,7 @@ USAGE
         if (!g_shareware.UrgeRegister(hwnd))
         {
             // Don't execute the functionality.
-            ...
+            return;
         }
     }
     ...
