@@ -15,8 +15,8 @@ RCFLAGS = $(DEFS)
 all: ConsoleShareware$(DOTEXE)
 
 ConsoleShareware$(DOTEXE): $(OBJS) Shareware.rc
-	g++ $(CXXFLAGS) -mconsole -o ConsoleShareware$(DOTEXE) $(OBJS)
-
+	g++ $(CXXFLAGS) -mconsole -o ConsoleShareware$(DOTEXE) $(OBJS) -lgdi32
+ 
 SHA-256$(DOTOBJ): SHA-256.hpp SHA-256.cpp
 	g++ $(CXXFLAGS) -c SHA-256.cpp
 

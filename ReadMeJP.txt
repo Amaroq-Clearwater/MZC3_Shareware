@@ -5,7 +5,7 @@
 ----------
 
 これはMZC3_Sharewareです。MZC3_Sharewareは、C++/Win32の
-シェアウェアを楽に作るためのソフトウェアです。
+シェアウェアを楽に作るためのフレームワークです。
 
 
 使い方
@@ -25,7 +25,7 @@
      そのリソースファイルの一番下に、「#include "Shareware.rc"」と
      いう行を追加し、Shareware.rc以外の上記の6つのファイルを
      プロジェクトに追加して下さい。
-     
+
      それ以外の場合は、上記の7つのファイルをプロジェクトに追加して下さい。
 
  (3) ファイルShareware.rcの中の"TODO:"項目を修正して下さい。
@@ -39,6 +39,9 @@
       Enter 'exit' to exit.
       SHA-256> test
       9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+      {0x9f, 0x86, 0xd0, 0x81, 0x88, 0x4c, 0x7d, 0x65, 0x9a, 0x2f, 0xea, 0xa0, 0xc5, 0
+      x5a, 0xd0, 0x15, 0xa3, 0xbf, 0x4f, 0x1b, 0x2b, 0x0b, 0x82, 0x2c, 0xd1, 0x5d, 0x6
+      c, 0x15, 0xb0, 0xf0, 0x0a, 0x08, }
       SHA-256> exit
 
  (5) #include "Shareware.hpp"をメインのソースファイルに追加して下さい。

@@ -24,23 +24,25 @@ using namespace std;
 static LPCTSTR s_pszSoftware = TEXT("Software");
 static LPCTSTR s_pszStartUse = TEXT("SW_StartUse");
 static LPCTSTR s_pszCheckSum = TEXT("SW_CheckSum");
-static const char *s_pszPassword = "SW_Password";
+static const char *s_pszEncodedPassword = "SW_EncodedPassword";
 
 ////////////////////////////////////////////////////////////////////////////
 
 LPTSTR SwLoadStringDx1(HINSTANCE hInstance, UINT uID)
 {
-    static TCHAR s_sz[MAX_PATH * 3];
+    static TCHAR s_sz[2048];
     s_sz[0] = 0;
-    ::LoadString(hInstance, uID, s_sz, MAX_PATH * 3);
+    ::LoadString(hInstance, uID, s_sz, 2048);
+    assert(::lstrlen(s_sz) < 2048);
     return s_sz;
 }
 
 LPTSTR SwLoadStringDx2(HINSTANCE hInstance, UINT uID)
 {
-    static TCHAR s_sz[MAX_PATH * 3];
+    static TCHAR s_sz[2048];
     s_sz[0] = 0;
-    ::LoadString(hInstance, uID, s_sz, MAX_PATH * 3);
+    ::LoadString(hInstance, uID, s_sz, 2048);
+    assert(::lstrlen(s_sz) < 2048);
     return s_sz;
 }
 
@@ -351,6 +353,27 @@ SW_Shareware::SW_Shareware(
     assert(m_pszSha256HashHexString);
 }
 
+SW_Shareware::SW_Shareware(
+    LPCTSTR pszCompanyKey,
+    LPCTSTR pszAppKey,
+    const BYTE *pbHash32Bytes,
+    DWORD dwTrialDays/* = 15*/)
+    : m_hInstance(::GetModuleHandle(NULL)),
+      m_pszCompanyKey(_tcsdup(pszCompanyKey)),
+      m_pszAppKey(_tcsdup(pszAppKey)),
+      m_pszSha256HashHexString(NULL),
+      m_dwTrialDays(dwTrialDays),
+      m_status(SW_Shareware::IN_TRIAL)
+{
+    #ifdef MStringA
+        MStringA str;
+    #else
+        std::string str;
+    #endif
+    MzcHexStringFromBytes(str, pbHash32Bytes, pbHash32Bytes + 32);
+    m_pszSha256HashHexString = _strdup(str.c_str());
+}
+
 /*virtual*/ SW_Shareware::~SW_Shareware()
 {
     free(m_pszCompanyKey);
@@ -567,7 +590,7 @@ bool SW_Shareware::SetRegistryFirstTime(HWND hwndParent)
                     }
                 }
 
-                ::RegDeleteValueA(hkeyApp, s_pszPassword);
+                ::RegDeleteValueA(hkeyApp, s_pszEncodedPassword);
 
                 ::RegCloseKey(hkeyApp);
             }
@@ -585,11 +608,24 @@ bool SW_Shareware::RegisterPassword(HWND hwndParent, const char *pszPassword)
     HKEY hkeySoftware, hkeyCompany, hkeyApp;
     DWORD dwDisp;
     bool bSuccess = false;
+
+    // check password
     if (!IsPasswordValid(pszPassword))
     {
         ::Sleep(750);
         return false;
     }
+
+    // duplicate and encode the password
+    char *pszEncodedPassword = _strdup(pszPassword);
+    DWORD size = static_cast<DWORD>(::lstrlenA(pszEncodedPassword));
+    EncodePassword(pszEncodedPassword, size);
+
+#ifndef NDEBUG
+    DecodePassword(pszEncodedPassword, size);
+    assert(memcmp(pszEncodedPassword, pszPassword, size) == 0);
+    EncodePassword(pszEncodedPassword, size);
+#endif
 
     result = ::RegCreateKeyEx(HKEY_CURRENT_USER, s_pszSoftware, 0,
                               NULL, 0, KEY_READ | KEY_WRITE, NULL,
@@ -607,17 +643,16 @@ bool SW_Shareware::RegisterPassword(HWND hwndParent, const char *pszPassword)
                 bSuccess = true;
 
                 // set password
-                DWORD cb = static_cast<DWORD>(
-                    sizeof(char) * (lstrlenA(pszPassword) + 1));
-                result = ::RegSetValueExA(hkeyApp, s_pszPassword, 0, REG_SZ,
-                    reinterpret_cast<const BYTE *>(pszPassword), cb);
+                DWORD cb = size;
+                result = ::RegSetValueExA(hkeyApp, s_pszEncodedPassword, 0, REG_BINARY,
+                    reinterpret_cast<const BYTE *>(pszEncodedPassword), cb);
                 if (result != ERROR_SUCCESS)
                 {
                     bSuccess = false;
                 }
                 else
                 {
-                    result = ::RegQueryValueExA(hkeyApp, s_pszPassword, NULL,
+                    result = ::RegQueryValueExA(hkeyApp, s_pszEncodedPassword, NULL,
                         NULL, NULL, NULL);
                     if (result != ERROR_SUCCESS)
                     {
@@ -661,6 +696,8 @@ bool SW_Shareware::RegisterPassword(HWND hwndParent, const char *pszPassword)
         m_status = SW_Shareware::REGD;
     }
 
+    free(pszEncodedPassword);
+
     return bSuccess;
 }
 
@@ -673,11 +710,13 @@ bool SW_Shareware::CheckAppKey(HWND hwndParent, HKEY hkeyApp)
 
     // check password
     char szPassword[sw_shareware_max_password];
-    cb = static_cast<DWORD>(sizeof(szPassword));
-    result = ::RegQueryValueExA(hkeyApp, s_pszPassword, NULL,
+    cb = sw_shareware_max_password - 1;
+    result = ::RegQueryValueExA(hkeyApp, s_pszEncodedPassword, NULL,
         NULL, reinterpret_cast<LPBYTE>(&szPassword), &cb);
     if (result == ERROR_SUCCESS)
     {
+        szPassword[cb] = 0;
+        DecodePassword(szPassword, cb);
         if (IsPasswordValid(szPassword))
         {
             // check check sum
@@ -782,7 +821,7 @@ bool SW_Shareware::CheckDate()
 
 DWORD SW_Shareware::GetUserCheckSum() const
 {
-    DWORD dwCheckSum = 0;
+    DWORD dwCheckSum = 0xDeadFace;
     TCHAR szUser[64];
     DWORD dwSize = 64;
     if (::GetUserName(szUser, &dwSize))
@@ -797,18 +836,28 @@ DWORD SW_Shareware::GetUserCheckSum() const
     return dwCheckSum;
 }
 
-/*virtual*/ void SW_Shareware::ShowErrorMessage(
-    HWND hwndParent, UINT uStringID)
+/*virtual*/ void
+SW_Shareware::EncodePassword(void *pass, DWORD size) const
 {
-    SwCenterMessageBox(hwndParent,
-        SwLoadStringDx2(m_hInstance, uStringID),
-        NULL, MB_ICONERROR);
+    // TODO:
+    BYTE *pb = reinterpret_cast<BYTE *>(pass);
+    while (size--)
+    {
+        *pb ^= 0xFF;
+        pb++;
+    }
 }
 
 /*virtual*/ void
-SW_Shareware::ThisCommandRequiresRegistering(HWND hwndParent)
+SW_Shareware::DecodePassword(void *pass, DWORD size) const
 {
-    ShowErrorMessage(hwndParent, 32737);
+    // TODO:
+    BYTE *pb = reinterpret_cast<BYTE *>(pass);
+    while (size--)
+    {
+        *pb ^= 0xFF;
+        pb++;
+    }
 }
 
 ////////////////////////////////////////////////////////////////////////////

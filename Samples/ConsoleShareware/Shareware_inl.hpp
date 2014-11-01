@@ -44,4 +44,18 @@ MZC_INLINE /*virtual*/ bool SW_Shareware::OnOutOfTrial(HWND hwndParent)
     return UrgeRegister(hwndParent);
 }
 
+MZC_INLINE /*virtual*/ void
+SW_Shareware::ThisCommandRequiresRegistering(HWND hwndParent)
+{
+    ShowErrorMessage(hwndParent, 32737);
+}
+
+MZC_INLINE /*virtual*/ void SW_Shareware::ShowErrorMessage(
+    HWND hwndParent, UINT uStringID)
+{
+    SwCenterMessageBox(hwndParent,
+        SwLoadStringDx2(m_hInstance, uStringID),
+        NULL, MB_ICONERROR);
+}
+
 ////////////////////////////////////////////////////////////////////////////

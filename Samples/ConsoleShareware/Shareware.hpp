@@ -32,13 +32,16 @@ void SwMakeStaticHyperlink(
 class SW_Shareware EXTENDS_MOBJECT
 {
 public:
-    // NOTE: hInstance is the instance handle of loading dialog resources.
     // NOTE: pszCompanyKey is the name of the registry key of the company.
     // NOTE: pszAppKey is the name of the registry key of the application.
     // NOTE: dwTrialDays is the trial interval in days.
     SW_Shareware(LPCTSTR pszCompanyKey,
                  LPCTSTR pszAppKey,
                  const char *pszSha256HashHexString,
+                 DWORD dwTrialDays = 15);
+    SW_Shareware(LPCTSTR pszCompanyKey,
+                 LPCTSTR pszAppKey,
+                 const BYTE *pbHash32Bytes,
                  DWORD dwTrialDays = 15);
     virtual ~SW_Shareware();
 
@@ -86,6 +89,8 @@ protected:
     virtual void OnTrialFirstTime(HWND hwndParent);
     virtual void OnTrial(HWND hwndParent);
     virtual bool OnOutOfTrial(HWND hwndParent);
+    virtual void EncodePassword(void *pass, DWORD size) const;
+    virtual void DecodePassword(void *pass, DWORD size) const;
 
 private:
     SW_Shareware();
