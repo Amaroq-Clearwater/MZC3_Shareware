@@ -189,6 +189,7 @@ HyperlinkStatic_OnPaint(HWND hwnd, HDC hdc)
         ::DrawText(hdc, szText, -1, &rc, uFormat);
     }
     ::DeleteObject(::SelectObject(hdc, hFontOld));
+    return 0;
 }
 
 static void
@@ -338,15 +339,15 @@ SW_Shareware::SW_Shareware(
     const char *pszSha256HashHexString,
     DWORD dwTrialDays/* = 15*/)
     : m_hInstance(::GetModuleHandle(NULL)),
+      m_dwTrialDays(dwTrialDays),
+      m_status(SW_Shareware::IN_TRIAL),
       m_pszCompanyKey(_tcsdup(pszCompanyKey)),
       m_pszAppKey(_tcsdup(pszAppKey)),
 #ifdef _MSC_VER
-      m_pszSha256HashHexString(_strdup(pszSha256HashHexString)),
+      m_pszSha256HashHexString(_strdup(pszSha256HashHexString))
 #else
-      m_pszSha256HashHexString(strdup(pszSha256HashHexString)),
+      m_pszSha256HashHexString(strdup(pszSha256HashHexString))
 #endif
-      m_dwTrialDays(dwTrialDays),
-      m_status(SW_Shareware::IN_TRIAL)
 {
     assert(m_pszCompanyKey);
     assert(m_pszAppKey);
@@ -359,11 +360,11 @@ SW_Shareware::SW_Shareware(
     const BYTE *pbHash32Bytes,
     DWORD dwTrialDays/* = 15*/)
     : m_hInstance(::GetModuleHandle(NULL)),
+      m_dwTrialDays(dwTrialDays),
+      m_status(SW_Shareware::IN_TRIAL),
       m_pszCompanyKey(_tcsdup(pszCompanyKey)),
       m_pszAppKey(_tcsdup(pszAppKey)),
-      m_pszSha256HashHexString(NULL),
-      m_dwTrialDays(dwTrialDays),
-      m_status(SW_Shareware::IN_TRIAL)
+      m_pszSha256HashHexString(NULL)
 {
     #ifdef MStringA
         MStringA str;
