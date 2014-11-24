@@ -38,11 +38,13 @@ public:
     SW_Shareware(LPCTSTR pszCompanyKey,
                  LPCTSTR pszAppKey,
                  const char *pszSha256HashHexString,
-                 DWORD dwTrialDays = 15);
+                 DWORD dwTrialDays = 15,
+                 const char *salt = "");
     SW_Shareware(LPCTSTR pszCompanyKey,
                  LPCTSTR pszAppKey,
                  const BYTE *pbHash32Bytes,
-                 DWORD dwTrialDays = 15);
+                 DWORD dwTrialDays = 15,
+                 const char *salt = "");
     virtual ~SW_Shareware();
 
     // NOTE: SW_Shareware::Start must be called on start-up of the MZC3 shareware.
@@ -79,6 +81,7 @@ protected:
     LPTSTR              m_pszCompanyKey;
     LPTSTR              m_pszAppKey;
     char *              m_pszSha256HashHexString;
+    char *              m_pszSalt;
 
     bool CheckRegistry(HWND hwndParent);
     bool CheckAppKey(HWND hwndParent, HKEY hkeyApp);

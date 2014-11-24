@@ -27,23 +27,29 @@ USAGE
 
  (3) Edit "TODO:" items in file Shareware.rc.
 
- (4) Get the hash string of your imagined password by SHA-256.exe.
-     For example, if the password was "test", the hash string will be
-     "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+ (4) Imagine a salt string and a password string.
+
+ (5) Get the hash string of your imagined password by SHA-256.exe for the salt.
+     For example, if the salt string was empty ("") and the password was "test", 
+     the hash string will be
+
+        "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+
      as below.
 
     (An example of execution of SHA-256.exe)
-      Enter 'exit' to exit.
-      SHA-256> test
-      9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
-      {0x9f, 0x86, 0xd0, 0x81, 0x88, 0x4c, 0x7d, 0x65, 0x9a, 0x2f, 0xea, 0xa0, 0xc5, 0
-      x5a, 0xd0, 0x15, 0xa3, 0xbf, 0x4f, 0x1b, 0x2b, 0x0b, 0x82, 0x2c, 0xd1, 0x5d, 0x6
-      c, 0x15, 0xb0, 0xf0, 0x0a, 0x08, }
-      SHA-256> exit
+        Enter 'exit' to exit.
+        Enter salt string: 
+        Enter password: test
+        9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+        {0x9f, 0x86, 0xd0, 0x81, 0x88, 0x4c, 0x7d, 0x65, 0x9a, 0x2f, 0xea, 0xa0, 0xc5, 0
+        x5a, 0xd0, 0x15, 0xa3, 0xbf, 0x4f, 0x1b, 0x2b, 0x0b, 0x82, 0x2c, 0xd1, 0x5d, 0x6
+        c, 0x15, 0xb0, 0xf0, 0x0a, 0x08, }
+        Enter password: exit
 
- (5) Add #include "Shareware.hpp" to the main source file.
+ (6) Add #include "Shareware.hpp" to the main source file.
 
- (6) Add the definition of a global variable (named g_shareware) of 
+ (7) Add the definition of a global variable (named g_shareware) of 
      SW_Shareware class to the main source file as follows:
 
     SW_Shareware g_shareware(
@@ -51,15 +57,17 @@ USAGE
         /* application registry key */  TEXT("MyApp"),
         /* password hash */
         "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
-        /* trial days */                15);
+        /* trial days */                15,
+        /* salt string */               "");
 
     The first parameter of constructor is the name of the company 
     registry key. The second parameter of constructor is the name of 
     the application registry key. The third parameter of constructor is 
     the hash string of the password. The fourth parameter of 
-    constructor is the number of the trial days.
+    constructor is the number of the trial days. The fifth parameter is
+    the salt string.
 
- (7) Add code as follows to the beginning of your application.
+ (8) Add code as follows to the beginning of your application.
  
     if (!g_shareware.Start(hwnd))
     {
@@ -67,7 +75,7 @@ USAGE
         ...
     }
 
- (8) Add code as follows before execution of the functionality 
+ (9) Add code as follows before execution of the functionality 
      to be restricted if the shareware password is not registered.
 
     if (!g_shareware.IsRegistered())
@@ -81,10 +89,10 @@ USAGE
     }
     ...
 
- (9) Build it. Your shareware will be made up. 
+ (10) Build it. Your shareware will be made up. 
      Try to execute it.
 
- (10) Improve Shareware.rc as you like.
+ (11) Improve Shareware.rc as you like.
 
 
 NOTICE

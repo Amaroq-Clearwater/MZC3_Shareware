@@ -173,18 +173,38 @@ HyperlinkStatic_OnPaint(HWND hwnd, HDC hdc)
         DWORD style = GetWindowLong(hwnd, GWL_STYLE);
         if (style & SS_CENTER)
             uFormat |= DT_CENTER;
-        if (style & SS_RIGHT)
+        else if (style & SS_RIGHT)
             uFormat |= DT_RIGHT;
         else
             uFormat |= DT_LEFT;
-        ::DrawText(hdc, szText, -1, &rc, uFormat | DT_CALCRECT);
-        ::OffsetRect(&rc, 1, 1);
+
+        RECT rcText = rc;
+        ::DrawText(hdc, szText, -1, &rcText, uFormat | DT_CALCRECT);
+
+        INT nClientWidth = rc.right - rc.left;
+        INT nTextWidth = rcText.right - rcText.left;
+        if (style & SS_CENTER)
+        {
+            rcText.left += (nClientWidth - nTextWidth) / 2;
+            rcText.right += (nClientWidth - nTextWidth) / 2;
+            ::OffsetRect(&rcText, 0, 1);
+        }
+        else if (style & SS_RIGHT)
+        {
+            rcText.left += nClientWidth - nTextWidth;
+            rcText.right += nClientWidth - nTextWidth;
+            ::OffsetRect(&rcText, -1, 1);
+        }
+        else
+        {
+            ::OffsetRect(&rcText, 1, 1);
+        }
 
         // draw focus
-        ::InflateRect(&rc, 1, 1);
+        ::InflateRect(&rcText, 1, 1);
         if (hwnd == ::GetFocus())
-            ::DrawFocusRect(hdc, &rc);
-        ::InflateRect(&rc, -1, -1);
+            ::DrawFocusRect(hdc, &rcText);
+        ::InflateRect(&rcText, -1, -1);
 
         ::DrawText(hdc, szText, -1, &rc, uFormat);
     }
@@ -337,42 +357,57 @@ SW_Shareware::SW_Shareware(
     LPCTSTR pszCompanyKey,
     LPCTSTR pszAppKey,
     const char *pszSha256HashHexString,
-    DWORD dwTrialDays/* = 15*/)
+    DWORD dwTrialDays/* = 15*/,
+    const char *salt/* = ""*/)
     : m_hInstance(::GetModuleHandle(NULL)),
       m_dwTrialDays(dwTrialDays),
       m_status(SW_Shareware::IN_TRIAL),
       m_pszCompanyKey(_tcsdup(pszCompanyKey)),
       m_pszAppKey(_tcsdup(pszAppKey)),
 #ifdef _MSC_VER
-      m_pszSha256HashHexString(_strdup(pszSha256HashHexString))
+      m_pszSha256HashHexString(_strdup(pszSha256HashHexString)),
+      m_pszSalt(_strdup(salt))
 #else
-      m_pszSha256HashHexString(strdup(pszSha256HashHexString))
+      m_pszSha256HashHexString(strdup(pszSha256HashHexString)),
+      m_pszSalt(strdup(salt))
 #endif
 {
     assert(m_pszCompanyKey);
     assert(m_pszAppKey);
     assert(m_pszSha256HashHexString);
+    assert(m_pszSalt);
 }
 
 SW_Shareware::SW_Shareware(
     LPCTSTR pszCompanyKey,
     LPCTSTR pszAppKey,
     const BYTE *pbHash32Bytes,
-    DWORD dwTrialDays/* = 15*/)
+    DWORD dwTrialDays/* = 15*/,
+    const char *salt/* = ""*/)
     : m_hInstance(::GetModuleHandle(NULL)),
       m_dwTrialDays(dwTrialDays),
       m_status(SW_Shareware::IN_TRIAL),
       m_pszCompanyKey(_tcsdup(pszCompanyKey)),
       m_pszAppKey(_tcsdup(pszAppKey)),
-      m_pszSha256HashHexString(NULL)
+      m_pszSha256HashHexString(NULL),
+#ifdef _MSC_VER
+      m_pszSalt(_strdup(salt))
+#else
+      m_pszSalt(strdup(salt))
+#endif
 {
+    assert(m_pszSalt);
     #ifdef MStringA
         MStringA str;
     #else
         std::string str;
     #endif
     MzcHexStringFromBytes(str, pbHash32Bytes, pbHash32Bytes + 32);
+#ifdef _MSC_VER
     m_pszSha256HashHexString = _strdup(str.c_str());
+#else
+    m_pszSha256HashHexString = strdup(str.c_str());
+#endif
 }
 
 /*virtual*/ SW_Shareware::~SW_Shareware()
@@ -380,6 +415,7 @@ SW_Shareware::SW_Shareware(
     free(m_pszCompanyKey);
     free(m_pszAppKey);
     free(m_pszSha256HashHexString);
+    free(m_pszSalt);
 }
 
 bool SW_Shareware::Start(HWND hwndParent/* = NULL*/)
@@ -618,7 +654,11 @@ bool SW_Shareware::RegisterPassword(HWND hwndParent, const char *pszPassword)
     }
 
     // duplicate and encode the password
+#ifdef _MSC_VER
     char *pszEncodedPassword = _strdup(pszPassword);
+#else
+    char *pszEncodedPassword = strdup(pszPassword);
+#endif
     DWORD size = static_cast<DWORD>(::lstrlenA(pszEncodedPassword));
     EncodePassword(pszEncodedPassword, size);
 
@@ -786,7 +826,7 @@ SW_Shareware::IsPasswordValid(const char *pszPassword) const
     #else
         std::string str;
     #endif
-    MzcGetSha256HexString(str, pszPassword);
+    MzcGetSha256HexString(str, pszPassword, m_pszSalt);
     return (str == m_pszSha256HashHexString);
 }
 
