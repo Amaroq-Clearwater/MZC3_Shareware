@@ -7,6 +7,8 @@
 #define __MZC3_SHAREWARE_HPP__
 #ifndef MZC_NO_SHAREWARE
 
+#include <string>
+
 ////////////////////////////////////////////////////////////////////////////
 
 #define sw_shareware_max_password 256
@@ -35,16 +37,20 @@ public:
     // NOTE: pszCompanyKey is the name of the registry key of the company.
     // NOTE: pszAppKey is the name of the registry key of the application.
     // NOTE: dwTrialDays is the trial interval in days.
+    // NOTE: parameter salt is the salt string.
+    // NOTE: parameter new_version is the current version of this software.
     SW_Shareware(LPCTSTR pszCompanyKey,
                  LPCTSTR pszAppKey,
                  const char *pszSha256HashHexString,
                  DWORD dwTrialDays = 15,
-                 const char *salt = "");
+                 const char *salt = "",
+                 const char *new_version = "");
     SW_Shareware(LPCTSTR pszCompanyKey,
                  LPCTSTR pszAppKey,
                  const BYTE *pbHash32Bytes,
                  DWORD dwTrialDays = 15,
-                 const char *salt = "");
+                 const char *salt = "",
+                 const char *new_version = "");
     virtual ~SW_Shareware();
 
     // NOTE: SW_Shareware::Start must be called on start-up of the MZC3 shareware.
@@ -65,6 +71,8 @@ public:
     virtual void ThisCommandRequiresRegistering(HWND hwndParent);
     bool CheckDate();
 
+    virtual int CompareVersion(const char *old_ver, const char *new_ver);
+
 public:
     HINSTANCE           m_hInstance;
     DWORDLONG           m_dwlTotalMinutesRemains;
@@ -77,11 +85,20 @@ public:
     };
     SHAREWARE_STATUS    m_status;
 
+public:
+    #ifdef UNICODE
+        typedef std::wstring tstring;
+    #else
+        typedef std::string tstring;
+    #endif
+
 protected:
-    LPTSTR              m_pszCompanyKey;
-    LPTSTR              m_pszAppKey;
-    char *              m_pszSha256HashHexString;
-    char *              m_pszSalt;
+    tstring             m_strCompanyKey;
+    tstring             m_strAppKey;
+    std::string         m_strSha256HashHexString;
+    std::string         m_strSalt;
+    std::string         m_strNewVersion;
+    std::string         m_strOldVersion;
 
     bool CheckRegistry(HWND hwndParent);
     bool CheckAppKey(HWND hwndParent, HKEY hkeyApp);

@@ -58,14 +58,16 @@ USAGE
         /* password hash */
         "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
         /* trial days */                15,
-        /* salt string */               "");
+        /* salt string */               "",
+        /* version string */            "");
 
     The first parameter of constructor is the name of the company 
     registry key. The second parameter of constructor is the name of 
     the application registry key. The third parameter of constructor is 
     the hash string of the password. The fourth parameter of 
     constructor is the number of the trial days. The fifth parameter is
-    the salt string.
+    the salt string. The sixth parameter is the current version of 
+    the application.
 
  (8) Add code as follows to the beginning of your application.
  

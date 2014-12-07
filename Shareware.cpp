@@ -8,7 +8,8 @@
 #include <windows.h>
 #include <tchar.h>
 #include <cassert>
-#include <string>
+#include <vector>
+#include <cctype>
 
 #include "SHA-256.hpp"
 #include "Shareware.hpp"
@@ -24,6 +25,7 @@ using namespace std;
 static LPCTSTR s_pszSoftware = TEXT("Software");
 static LPCTSTR s_pszStartUse = TEXT("SW_StartUse");
 static LPCTSTR s_pszCheckSum = TEXT("SW_CheckSum");
+static const char *s_pszOldVersion = "SW_OldVersion";
 static const char *s_pszEncodedPassword = "SW_EncodedPassword";
 
 ////////////////////////////////////////////////////////////////////////////
@@ -134,7 +136,11 @@ int SwCenterMessageBox(
 struct SW_HyperlinkStatic
 {
     WNDPROC fnWndProc;
-    LPTSTR  pszURL;
+    #ifdef UNICODE
+        std::wstring strURL;
+    #else
+        std::string strURL;
+    #endif
     HCURSOR hHandCursor;
 };
 
@@ -265,7 +271,7 @@ HyperlinkStatic_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_LBUTTONDOWN:
         ::SetFocus(hwnd);
-        ::ShellExecute(hwnd, NULL, pHS->pszURL, NULL, NULL, SW_SHOWNORMAL);
+        ::ShellExecute(hwnd, NULL, pHS->strURL.data(), NULL, NULL, SW_SHOWNORMAL);
         break;
 
     case WM_MOUSEMOVE:
@@ -276,7 +282,7 @@ HyperlinkStatic_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_KEYDOWN:
         if (wParam == VK_SPACE || wParam == VK_RETURN)
         {
-            ::ShellExecute(hwnd, NULL, pHS->pszURL, NULL, NULL, SW_SHOWNORMAL);
+            ::ShellExecute(hwnd, NULL, pHS->strURL.data(), NULL, NULL, SW_SHOWNORMAL);
             return 0;
         }
         if (wParam == VK_TAB)
@@ -311,7 +317,6 @@ HyperlinkStatic_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     case WM_NCDESTROY:
         SetWindowLongPtr(hwnd, GWLP_USERDATA, 0);
         ::CallWindowProc(pHS->fnWndProc, hwnd, uMsg, wParam, lParam);
-        free(pHS->pszURL);
         delete pHS;
         return 0;
 
@@ -332,13 +337,13 @@ void SwMakeStaticHyperlink(HWND hwndCtrl, LPCTSTR pszURL/* = NULL*/)
     SW_HyperlinkStatic *pHS = new SW_HyperlinkStatic;
     if (pszURL)
     {
-        pHS->pszURL = _tcsdup(pszURL);
+        pHS->strURL = pszURL;
     }
     else
     {
         TCHAR sz[256];
         ::GetWindowText(hwndCtrl, sz, 256);
-        pHS->pszURL = _tcsdup(sz);
+        pHS->strURL = sz;
     }
     pHS->hHandCursor =
         ::LoadCursor(::GetModuleHandle(NULL), MAKEINTRESOURCE(32731));
@@ -358,24 +363,18 @@ SW_Shareware::SW_Shareware(
     LPCTSTR pszAppKey,
     const char *pszSha256HashHexString,
     DWORD dwTrialDays/* = 15*/,
-    const char *salt/* = ""*/)
+    const char *salt/* = ""*/,
+    const char *new_version/* = ""*/)
     : m_hInstance(::GetModuleHandle(NULL)),
       m_dwTrialDays(dwTrialDays),
       m_status(SW_Shareware::IN_TRIAL),
-      m_pszCompanyKey(_tcsdup(pszCompanyKey)),
-      m_pszAppKey(_tcsdup(pszAppKey)),
-#ifdef _MSC_VER
-      m_pszSha256HashHexString(_strdup(pszSha256HashHexString)),
-      m_pszSalt(_strdup(salt))
-#else
-      m_pszSha256HashHexString(strdup(pszSha256HashHexString)),
-      m_pszSalt(strdup(salt))
-#endif
+      m_strCompanyKey(pszCompanyKey),
+      m_strAppKey(pszAppKey),
+      m_strSha256HashHexString(pszSha256HashHexString),
+      m_strSalt(salt),
+      m_strNewVersion(new_version),
+      m_strOldVersion()
 {
-    assert(m_pszCompanyKey);
-    assert(m_pszAppKey);
-    assert(m_pszSha256HashHexString);
-    assert(m_pszSalt);
 }
 
 SW_Shareware::SW_Shareware(
@@ -383,39 +382,24 @@ SW_Shareware::SW_Shareware(
     LPCTSTR pszAppKey,
     const BYTE *pbHash32Bytes,
     DWORD dwTrialDays/* = 15*/,
-    const char *salt/* = ""*/)
+    const char *salt/* = ""*/,
+    const char *new_version/* = ""*/)
     : m_hInstance(::GetModuleHandle(NULL)),
       m_dwTrialDays(dwTrialDays),
       m_status(SW_Shareware::IN_TRIAL),
-      m_pszCompanyKey(_tcsdup(pszCompanyKey)),
-      m_pszAppKey(_tcsdup(pszAppKey)),
-      m_pszSha256HashHexString(NULL),
-#ifdef _MSC_VER
-      m_pszSalt(_strdup(salt))
-#else
-      m_pszSalt(strdup(salt))
-#endif
+      m_strCompanyKey(pszCompanyKey),
+      m_strAppKey(pszAppKey),
+      m_strSha256HashHexString(),
+      m_strSalt(salt),
+      m_strNewVersion(new_version),
+      m_strOldVersion()
 {
-    assert(m_pszSalt);
-    #ifdef MStringA
-        MStringA str;
-    #else
-        std::string str;
-    #endif
-    MzcHexStringFromBytes(str, pbHash32Bytes, pbHash32Bytes + 32);
-#ifdef _MSC_VER
-    m_pszSha256HashHexString = _strdup(str.c_str());
-#else
-    m_pszSha256HashHexString = strdup(str.c_str());
-#endif
+    MzcHexStringFromBytes(
+        m_strSha256HashHexString, pbHash32Bytes, pbHash32Bytes + 32);
 }
 
 /*virtual*/ SW_Shareware::~SW_Shareware()
 {
-    free(m_pszCompanyKey);
-    free(m_pszAppKey);
-    free(m_pszSha256HashHexString);
-    free(m_pszSalt);
 }
 
 bool SW_Shareware::Start(HWND hwndParent/* = NULL*/)
@@ -559,15 +543,16 @@ bool SW_Shareware::CheckRegistry(HWND hwndParent)
     if (result == ERROR_SUCCESS)
     {
         result = ::RegOpenKeyEx(hkeySoftware,
-                                m_pszCompanyKey, 0,
+                                m_strCompanyKey.data(), 0,
                                 KEY_READ | KEY_WRITE, &hkeyCompany);
         if (result == ERROR_SUCCESS)
         {
-            result = ::RegOpenKeyEx(hkeyCompany, m_pszAppKey, 0,
+            result = ::RegOpenKeyEx(hkeyCompany, m_strAppKey.data(), 0,
                                     KEY_READ | KEY_WRITE, &hkeyApp);
             if (result == ERROR_SUCCESS)
             {
                 bHasAppKey = true;
+
                 bCanUse = CheckAppKey(hwndParent, hkeyApp);
                 ::RegCloseKey(hkeyApp);
             }
@@ -598,11 +583,11 @@ bool SW_Shareware::SetRegistryFirstTime(HWND hwndParent)
                               &hkeySoftware, &dwDisp);
     if (result == ERROR_SUCCESS)
     {
-        result = ::RegCreateKeyEx(hkeySoftware, m_pszCompanyKey,
+        result = ::RegCreateKeyEx(hkeySoftware, m_strCompanyKey.data(),
             0, NULL, 0, KEY_READ | KEY_WRITE, NULL, &hkeyCompany, &dwDisp);
         if (result == ERROR_SUCCESS)
         {
-            result = ::RegCreateKeyEx(hkeyCompany, m_pszAppKey,
+            result = ::RegCreateKeyEx(hkeyCompany, m_strAppKey.data(),
                 0, NULL, 0, KEY_READ | KEY_WRITE, NULL, &hkeyApp, &dwDisp);
             if (result == ERROR_SUCCESS)
             {
@@ -673,11 +658,11 @@ bool SW_Shareware::RegisterPassword(HWND hwndParent, const char *pszPassword)
                               &hkeySoftware, &dwDisp);
     if (result == ERROR_SUCCESS)
     {
-        result = ::RegCreateKeyEx(hkeySoftware, m_pszCompanyKey,
+        result = ::RegCreateKeyEx(hkeySoftware, m_strCompanyKey.data(),
             0, NULL, 0, KEY_READ | KEY_WRITE, NULL, &hkeyCompany, &dwDisp);
         if (result == ERROR_SUCCESS)
         {
-            result = ::RegCreateKeyEx(hkeyCompany, m_pszAppKey,
+            result = ::RegCreateKeyEx(hkeyCompany, m_strAppKey.data(),
                 0, NULL, 0, KEY_READ | KEY_WRITE, NULL, &hkeyApp, &dwDisp);
             if (result == ERROR_SUCCESS)
             {
@@ -746,6 +731,7 @@ bool SW_Shareware::CheckAppKey(HWND hwndParent, HKEY hkeyApp)
 {
     LONG result;
     DWORD cb;
+    FILETIME ft;
 
     m_dwlTotalMinutesRemains = 0;
 
@@ -773,8 +759,48 @@ bool SW_Shareware::CheckAppKey(HWND hwndParent, HKEY hkeyApp)
         }
     }
 
+    // check version
+    char szOldVersion[64];
+    cb = 64 - 1;
+    result = ::RegQueryValueExA(hkeyApp, s_pszOldVersion, NULL,
+        NULL, reinterpret_cast<LPBYTE>(&szOldVersion), &cb);
+    if (result == ERROR_SUCCESS)
+    {
+        m_strOldVersion = szOldVersion;
+
+        // compare version
+        if (CompareVersion(m_strOldVersion.data(),
+                           m_strNewVersion.data()) < 0)
+        {
+            m_status = SW_Shareware::IN_TRIAL;
+
+            // update version
+            cb = static_cast<DWORD>(m_strNewVersion.size() + 1);
+            result = ::RegSetValueExA(hkeyApp, s_pszOldVersion, 0, REG_SZ,
+                reinterpret_cast<const BYTE *>(m_strNewVersion.data()), cb);
+            assert(result == ERROR_SUCCESS);
+
+            // update date
+            ::GetSystemTimeAsFileTime(&ft);
+            m_ftStart = ft;
+            cb = static_cast<DWORD>(sizeof(ft));
+            result = ::RegSetValueEx(hkeyApp, s_pszStartUse, 0, REG_BINARY,
+                reinterpret_cast<const BYTE *>(&ft), cb);
+            assert(result == ERROR_SUCCESS);
+
+            return true;
+        }
+    }
+    else
+    {
+        // set version
+        cb = static_cast<DWORD>(m_strNewVersion.size() + 1);
+        result = ::RegSetValueExA(hkeyApp, s_pszOldVersion, 0, REG_SZ,
+            reinterpret_cast<const BYTE *>(m_strNewVersion.data()), cb);
+        assert(result == ERROR_SUCCESS);
+    }
+
     // check date
-    FILETIME ft;
     cb = static_cast<DWORD>(sizeof(ft));
     result = ::RegQueryValueEx(hkeyApp, s_pszStartUse, NULL,
         NULL, reinterpret_cast<LPBYTE>(&ft), &cb);
@@ -821,13 +847,9 @@ bool SW_Shareware::CheckAppKey(HWND hwndParent, HKEY hkeyApp)
 /*virtual*/ bool
 SW_Shareware::IsPasswordValid(const char *pszPassword) const
 {
-    #ifdef MStringA
-        MStringA str;
-    #else
-        std::string str;
-    #endif
-    MzcGetSha256HexString(str, pszPassword, m_pszSalt);
-    return (str == m_pszSha256HashHexString);
+    std::string str;
+    MzcGetSha256HexString(str, pszPassword, m_strSalt.c_str());
+    return (str == m_strSha256HashHexString);
 }
 
 bool SW_Shareware::CheckDate()
@@ -900,6 +922,105 @@ SW_Shareware::DecodePassword(void *pass, DWORD size) const
         pb++;
     }
 }
+
+static void sw_explode(
+    std::vector<string>& v,
+    const std::string& separators, const std::string& s)
+{
+    size_t i = s.find_first_not_of(separators);
+    size_t n = s.size();
+
+    v.clear();
+    while (i < n)
+    {
+        size_t stop = s.find_first_of(separators, i);
+        if (stop > n) stop = n;
+        v.push_back(s.substr(i, stop - i));
+        i = s.find_first_not_of(separators, stop + 1);
+    }
+}
+
+/*virtual*/ int
+SW_Shareware::CompareVersion(const char *old_ver, const char *new_ver)
+{
+    using namespace std;
+    if (old_ver[0] == 0 && new_ver[0] == 0)
+        return 0;
+
+    std::vector<string> o, n;
+    sw_explode(o, " .", old_ver);
+    sw_explode(n, " .", new_ver);
+
+    size_t osiz = o.size(), nsiz = n.size();
+    size_t m = (osiz > nsiz ? nsiz : osiz);
+    for (size_t i = 0; i < m; ++i)
+    {
+        if (o[i].size() == 0 && n[i].size() == 0) continue;
+        if (o[i].size() == 0) return -1;
+        if (n[i].size() == 0) return -1;
+
+        if (isdigit(o[i][0]) && isdigit(n[i][0]))
+        {
+            char *op, *np;
+            int on = strtol(o[i].data(), &op, 10);
+            int nn = strtol(n[i].data(), &np, 10);
+            if (on < nn) return -1;
+            if (on > nn) return 1;
+
+            int cmp = strcmp(op, np);
+            if (cmp < 0) return -1;
+            if (cmp > 0) return 1;
+        }
+        else
+        {
+            int cmp = strcmp(o[i].data(), n[i].data());
+            if (cmp < 0) return -1;
+            if (cmp > 0) return 1;
+        }
+    }
+    if (osiz < nsiz) return -1;
+    if (osiz > nsiz) return 1;
+    return 0;
+}
+
+////////////////////////////////////////////////////////////////////////////
+
+#ifdef SHAREWARE_UNITTEST
+    extern "C"
+    int main(void)
+    {
+        SW_Shareware s(
+            TEXT("Katayama Hirofumi MZ"),
+            TEXT("SharewareTest"),
+            "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08");
+        assert(s.IsPasswordValid("test"));
+
+        assert(s.CompareVersion("", "") == 0);
+        assert(s.CompareVersion("1", "1") == 0);
+        assert(s.CompareVersion("2.1", "2.1") == 0);
+
+        assert(s.CompareVersion("1", "2") < 0);
+        assert(s.CompareVersion("1.1", "2.1") < 0);
+        assert(s.CompareVersion("1.1", "1.2") < 0);
+        assert(s.CompareVersion("1.1", "1.1.1") < 0);
+        assert(s.CompareVersion("1.1", "1.2.1") < 0);
+        assert(s.CompareVersion("1.1", "1.1a") < 0);
+        assert(s.CompareVersion("1.1a", "1.1b") < 0);
+        assert(s.CompareVersion("1.1", "1.1 b") < 0);
+        assert(s.CompareVersion("1.1 a", "1.1 b") < 0);
+
+        assert(s.CompareVersion("2", "1") > 0);
+        assert(s.CompareVersion("2.1", "1.1") > 0);
+        assert(s.CompareVersion("1.2", "1.1") > 0);
+        assert(s.CompareVersion("1.1.1", "1.1") > 0);
+        assert(s.CompareVersion("1.2.1", "1.1") > 0);
+        assert(s.CompareVersion("1.1a", "1.1") > 0);
+        assert(s.CompareVersion("1.1b", "1.1a") > 0);
+        assert(s.CompareVersion("1.1 b", "1.1") > 0);
+        assert(s.CompareVersion("1.1 b", "1.1 a") > 0);
+        return 0;
+    }
+#endif  // def SHAREWARE_UNITTEST
 
 ////////////////////////////////////////////////////////////////////////////
 
