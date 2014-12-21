@@ -117,7 +117,7 @@ int SwCenterMessageBox(
         s_hMsgBoxHook = NULL;
 
     HINSTANCE hInst = reinterpret_cast<HINSTANCE>(
-        GetWindowLongPtr(hwndParent, GWLP_HINSTANCE));
+        ::GetWindowLongPtr(hwndParent, GWLP_HINSTANCE));
 
     DWORD dwThreadID = ::GetCurrentThreadId();
     s_hMsgBoxHook = ::SetWindowsHookEx(WH_CBT, SwMsgBoxCbtProc_, hInst, dwThreadID);
@@ -167,8 +167,8 @@ HyperlinkStatic_OnPaint(HWND hwnd, HDC hdc)
     hFont = ::CreateFontIndirect(&lf);
 
     // set text color and background mix mode
-    SetTextColor(hdc, RGB(0, 0, 192));
-    SetBkMode(hdc, TRANSPARENT);
+    ::SetTextColor(hdc, RGB(0, 0, 192));
+    ::SetBkMode(hdc, TRANSPARENT);
 
     // draw text
     HGDIOBJ hFontOld = ::SelectObject(hdc, hFont);
@@ -176,7 +176,7 @@ HyperlinkStatic_OnPaint(HWND hwnd, HDC hdc)
         TCHAR szText[256];
         ::GetWindowText(hwnd, szText, 256);
         UINT uFormat = DT_SINGLELINE | DT_NOPREFIX | DT_END_ELLIPSIS;
-        DWORD style = GetWindowLong(hwnd, GWL_STYLE);
+        DWORD style = ::GetWindowLong(hwnd, GWL_STYLE);
         if (style & SS_CENTER)
             uFormat |= DT_CENTER;
         else if (style & SS_RIGHT)
@@ -221,7 +221,7 @@ HyperlinkStatic_OnPaint(HWND hwnd, HDC hdc)
 static void
 HyperlinkStatic_OnTab(HWND hwnd)
 {
-    if (GetAsyncKeyState(VK_SHIFT) < 0)
+    if (::GetAsyncKeyState(VK_SHIFT) < 0)
     {
         HWND hCtrl = hwnd;
         for (;;)
@@ -262,7 +262,7 @@ HyperlinkStatic_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     LRESULT result;
 
     pHS = reinterpret_cast<SW_HyperlinkStatic *>(
-        GetWindowLongPtr(hwnd, GWLP_USERDATA));
+        ::GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
     switch (uMsg)
     {
@@ -315,7 +315,7 @@ HyperlinkStatic_WndProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         return 0;
 
     case WM_NCDESTROY:
-        SetWindowLongPtr(hwnd, GWLP_USERDATA, 0);
+        ::SetWindowLongPtr(hwnd, GWLP_USERDATA, 0);
         ::CallWindowProc(pHS->fnWndProc, hwnd, uMsg, wParam, lParam);
         delete pHS;
         return 0;
@@ -348,11 +348,11 @@ void SwMakeStaticHyperlink(HWND hwndCtrl, LPCTSTR pszURL/* = NULL*/)
     pHS->hHandCursor =
         ::LoadCursor(::GetModuleHandle(NULL), MAKEINTRESOURCE(32731));
 
-    SetWindowLongPtr(hwndCtrl, GWLP_USERDATA,
+    ::SetWindowLongPtr(hwndCtrl, GWLP_USERDATA,
                      reinterpret_cast<LONG_PTR>(pHS));
     pHS->fnWndProc =
         reinterpret_cast<WNDPROC>(
-            SetWindowLongPtr(hwndCtrl, GWLP_WNDPROC,
+            ::SetWindowLongPtr(hwndCtrl, GWLP_WNDPROC,
                 reinterpret_cast<LONG_PTR>(HyperlinkStatic_WndProc)));
 }
 
@@ -497,12 +497,12 @@ SwUrgeRegisterDlgProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         {
         case IDOK:
             szPassword[0] = 0;
-            GetDlgItemTextA(hwnd, edt2, szPassword, sw_shareware_max_password);
+            ::GetDlgItemTextA(hwnd, edt2, szPassword, sw_shareware_max_password);
             if (s_pShareware->RegisterPassword(hwnd, szPassword))
             {
                 SwUrgeRegisterDlg_OnInit(hwnd, s_pShareware);
                 TCHAR szTitle[256];
-                GetWindowText(hwnd, szTitle, 256);
+                ::GetWindowText(hwnd, szTitle, 256);
                 SwCenterMessageBox(hwnd,
                     SwLoadStringDx1(s_pShareware->m_hInstance, 32735),
                     szTitle, MB_ICONINFORMATION);
@@ -848,7 +848,7 @@ bool SW_Shareware::CheckAppKey(HWND hwndParent, HKEY hkeyApp)
 SW_Shareware::IsPasswordValid(const char *pszPassword) const
 {
     std::string str;
-    MzcGetSha256HexString(str, pszPassword, m_strSalt.c_str());
+    MzcGetSha256HexString(str, pszPassword, m_strSalt.data());
     return (str == m_strSha256HashHexString);
 }
 
